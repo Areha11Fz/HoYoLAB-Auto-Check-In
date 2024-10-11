@@ -69,6 +69,8 @@ function autoSignFunction({ token, zzz, genshin, honkai_star_rail, honkai_3, acc
         Origin: "https://act.hoyolab.com"
     };
 
+    if (zzz) header["x-rpc-signgame"] = "zzz";
+
     const options = {
         method: "POST",
         headers: header,
