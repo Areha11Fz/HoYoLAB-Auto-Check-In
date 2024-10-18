@@ -70,6 +70,7 @@ function autoSignFunction({ token, zzz, genshin, honkai_star_rail, honkai_3, acc
     };
 
     if (zzz) header["x-rpc-signgame"] = "zzz";
+    if (honkai_star_rail) header["x-rpc-signgame"] = "hsr";
 
     const options = {
         method: "POST",
