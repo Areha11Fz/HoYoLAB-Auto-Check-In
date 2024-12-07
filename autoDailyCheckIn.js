@@ -56,7 +56,7 @@ function autoSignFunction({ token, zzz, genshin, honkai_star_rail, honkai_3, acc
     if (honkai_star_rail) urls.push(urlDict.Star_Rail);
     if (honkai_3) urls.push(urlDict.Honkai_3);
 
-    const header = {
+    const baseHeader = {
         Cookie: token,
         Accept: "application/json, text/plain, */*",
         "Accept-Encoding": "gzip, deflate, br",
@@ -69,28 +69,36 @@ function autoSignFunction({ token, zzz, genshin, honkai_star_rail, honkai_3, acc
         Origin: "https://act.hoyolab.com"
     };
 
-    if (zzz) header["x-rpc-signgame"] = "zzz";
-    if (honkai_star_rail) header["x-rpc-signgame"] = "hsr";
+    // Build a separate request for each URL with the correct x-rpc-signgame header
+    const httpRequests = urls.map(url => {
+        const headers = { ...baseHeader };
+        if (url === urlDict.ZZZ) headers["x-rpc-signgame"] = "zzz";
+        if (url === urlDict.Star_Rail) headers["x-rpc-signgame"] = "honkai_star_rail";
+        if (url === urlDict.Genshin) headers["x-rpc-signgame"] = "genshin";
+        if (url === urlDict.Honkai_3) headers["x-rpc-signgame"] = "honkai_3";
 
-    const options = {
-        method: "POST",
-        headers: header,
-        muteHttpExceptions: true
-    };
+        return {
+            url,
+            method: "POST",
+            headers,
+            muteHttpExceptions: true
+        };
+    });
 
     let response = `${accountName}`;
     let retry = false;
 
     do {
-        const httpResponses = UrlFetchApp.fetchAll(urls.map(url => ({ url, ...options })));
+        const httpResponses = UrlFetchApp.fetchAll(httpRequests);
 
         for (const [i, hoyolabResponse] of httpResponses.entries()) {
-            const checkInResult = JSON.parse(hoyolabResponse).message;
+            const result = JSON.parse(hoyolabResponse);
+            const checkInResult = result.message;
             const gameName = Object.keys(urlDict)
                 .find(key => urlDict[key] === urls[i])
                 ?.replace(/_/g, " ");
             const isError = checkInResult != "OK";
-            const bannedCheck = JSON.parse(hoyolabResponse).data?.gt_result?.is_risk;
+            const bannedCheck = result.data?.gt_result?.is_risk;
 
             if (bannedCheck) {
                 response += `\n${gameName}: ${discordPing()} Auto check-in failed due to CAPTCHA blocking.`;
@@ -100,7 +108,6 @@ function autoSignFunction({ token, zzz, genshin, honkai_star_rail, honkai_3, acc
                 response += `\n${gameName}: ${isError ? discordPing() : ""}${checkInResult}`;
             }
         }
-
         // If any request failed due to CAPTCHA, retry in an hour
         if (retry) {
             Utilities.sleep(3600000); // Sleep for 1 hour (3600 seconds * 1000 milliseconds)
